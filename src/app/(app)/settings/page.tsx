@@ -2,9 +2,17 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { PageHeader } from '@/components/layout/PageHeader'
-import { Plus, X, Check } from 'lucide-react'
+import { Plus, X, Check, ChevronDown } from 'lucide-react'
 import { DEFAULT_BAG_CLUBS } from '@/types/golf'
-import { cn } from '@/lib/utils'
+import { cn, formatHandicap } from '@/lib/utils'
+import { format } from 'date-fns'
+
+interface HandicapEntry {
+  id: string
+  handicapIndex: number
+  recordedDate: string
+  notes: string | null
+}
 
 interface Settings {
   id: string
@@ -77,12 +85,40 @@ export default function SettingsPage() {
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [newClub, setNewClub] = useState('')
+  const [handicapEntries, setHandicapEntries] = useState<HandicapEntry[]>([])
+  const [showHandicapForm, setShowHandicapForm] = useState(false)
+  const [newHandicap, setNewHandicap] = useState({ handicapIndex: '', recordedDate: format(new Date(), 'yyyy-MM-dd'), notes: '' })
+  const [savingHandicap, setSavingHandicap] = useState(false)
 
   useEffect(() => {
-    fetch('/api/settings')
-      .then(r => r.json())
-      .then(data => { setSettings(data); setLoading(false) })
+    Promise.all([
+      fetch('/api/settings').then(r => r.json()),
+      fetch('/api/handicap').then(r => r.json()),
+    ]).then(([s, h]) => {
+      setSettings(s)
+      setHandicapEntries(h)
+      setLoading(false)
+    })
   }, [])
+
+  async function saveHandicapEntry() {
+    if (!newHandicap.handicapIndex) return
+    setSavingHandicap(true)
+    const res = await fetch('/api/handicap', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        handicapIndex: parseFloat(newHandicap.handicapIndex),
+        recordedDate: newHandicap.recordedDate,
+        notes: newHandicap.notes || null,
+      }),
+    })
+    const entry = await res.json()
+    setHandicapEntries(prev => [entry, ...prev])
+    setNewHandicap({ handicapIndex: '', recordedDate: format(new Date(), 'yyyy-MM-dd'), notes: '' })
+    setShowHandicapForm(false)
+    setSavingHandicap(false)
+  }
 
   const save = useCallback(async (patch: Partial<Settings>) => {
     if (!settings) return
@@ -182,6 +218,76 @@ export default function SettingsPage() {
           >
             Reset to defaults
           </button>
+        </div>
+      </Section>
+
+      {/* Handicap */}
+      <Section title="Handicap">
+        <div className="p-4 space-y-3">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-xs text-[--text-muted] uppercase tracking-wide">Current index</p>
+              <p className="font-['DM_Serif_Display'] text-3xl text-[--navy]">
+                {handicapEntries[0] ? formatHandicap(handicapEntries[0].handicapIndex) : '—'}
+              </p>
+            </div>
+            <button
+              onClick={() => setShowHandicapForm(p => !p)}
+              className="flex items-center gap-1 bg-[--navy] text-white text-sm font-medium px-3 py-2 rounded-lg hover:bg-[--navy-light] transition-colors"
+            >
+              <Plus size={14} /> Update
+            </button>
+          </div>
+
+          {showHandicapForm && (
+            <div className="bg-[--cream] rounded-xl p-3 space-y-3 border border-[--border]">
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block text-xs text-[--text-muted] mb-1">Index</label>
+                  <input
+                    type="text"
+                    inputMode="decimal"
+                    value={newHandicap.handicapIndex}
+                    onChange={e => setNewHandicap(p => ({ ...p, handicapIndex: e.target.value }))}
+                    placeholder="4.1"
+                    className="w-full h-10 px-3 rounded-lg border border-[--border] text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[--navy]"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs text-[--text-muted] mb-1">Date</label>
+                  <input
+                    type="date"
+                    value={newHandicap.recordedDate}
+                    onChange={e => setNewHandicap(p => ({ ...p, recordedDate: e.target.value }))}
+                    className="w-full h-10 px-3 rounded-lg border border-[--border] text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[--navy]"
+                  />
+                </div>
+              </div>
+              <input
+                type="text"
+                value={newHandicap.notes}
+                onChange={e => setNewHandicap(p => ({ ...p, notes: e.target.value }))}
+                placeholder="Note (optional)"
+                className="w-full h-10 px-3 rounded-lg border border-[--border] text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[--navy]"
+              />
+              <div className="flex gap-2">
+                <button onClick={() => setShowHandicapForm(false)} className="flex-1 h-9 border border-[--border] rounded-lg text-sm text-[--text-muted] hover:bg-white transition-colors">Cancel</button>
+                <button onClick={saveHandicapEntry} disabled={savingHandicap || !newHandicap.handicapIndex} className="flex-1 h-9 bg-[--navy] text-white rounded-lg text-sm font-medium hover:bg-[--navy-light] transition-colors disabled:opacity-50">
+                  {savingHandicap ? 'Saving…' : 'Save'}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {handicapEntries.slice(0, 5).map(entry => (
+            <div key={entry.id} className="flex items-center justify-between py-2 border-t border-[--border]">
+              <div>
+                <p className="text-sm font-medium text-[--text-primary]">{formatHandicap(entry.handicapIndex)}</p>
+                {entry.notes && <p className="text-xs text-[--text-muted]">{entry.notes}</p>}
+              </div>
+              <p className="text-xs text-[--text-muted]">{format(new Date(entry.recordedDate), 'MMM d, yyyy')}</p>
+            </div>
+          ))}
         </div>
       </Section>
 
