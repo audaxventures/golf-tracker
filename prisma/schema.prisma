@@ -1,0 +1,175 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ─── COURSES ────────────────────────────────────────────────────────────────
+
+model Course {
+  id        String   @id @default(cuid())
+  name      String
+  city      String?
+  province  String?
+  country   String   @default("Canada")
+  holes     Int      @default(18)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tees   Tee[]
+  rounds Round[]
+}
+
+model Tee {
+  id       String  @id @default(cuid())
+  courseId String
+  name     String
+  rating   Float
+  slope    Int
+  par      Int     @default(72)
+  yardage  Int?
+
+  course Course     @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  holes  HoleInfo[]
+  rounds Round[]
+}
+
+model HoleInfo {
+  id         String  @id @default(cuid())
+  teeId      String
+  holeNumber Int
+  par        Int
+  yardage    Int
+  handicap   Int?
+
+  tee Tee @relation(fields: [teeId], references: [id], onDelete: Cascade)
+}
+
+// ─── ROUNDS ─────────────────────────────────────────────────────────────────
+
+model Round {
+  id          String   @id @default(cuid())
+  courseId    String
+  teeId       String
+  datePlayed  DateTime
+  temperature Int?
+  windSpeed   String?
+  conditions  String?
+  notes       String?
+  isComplete  Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  totalScore        Int?
+  totalPutts        Int?
+  fairwaysHit       Int?
+  fairwaysAvailable Int?
+  girsHit           Int?
+  girsAvailable     Int?
+  penalties         Int?
+
+  sgTotal       Float?
+  sgOffTee      Float?
+  sgApproach    Float?
+  sgAroundGreen Float?
+  sgPutting     Float?
+
+  course Course      @relation(fields: [courseId], references: [id])
+  tee    Tee         @relation(fields: [teeId], references: [id])
+  holes  HoleStats[]
+}
+
+// ─── HOLE-BY-HOLE STATS ─────────────────────────────────────────────────────
+
+model HoleStats {
+  id         String @id @default(cuid())
+  roundId    String
+  holeNumber Int
+  par        Int
+
+  score     Int
+  scoreDiff Int
+
+  teeClub     String?
+  teeResult   String?
+  teeShape    String?
+  teeDistance Int?
+  teeOnPar3   Boolean @default(false)
+
+  approachClub       String?
+  approachDistance   Int?
+  approachLie        String?
+  approachResult     String?
+  approachProximity  Int?
+
+  shortGameShots     Int?    @default(0)
+  shortGameClub      String?
+  shortGameDistance  Int?
+  shortGameLie       String?
+  shortGameProximity Int?
+
+  fromBunker      Boolean @default(false)
+  bunkerType      String?
+  bunkerLie       String?
+  bunkerResult    String?
+  bunkerProximity Int?
+
+  putts              Int     @default(0)
+  firstPuttDistance  Int?
+  firstPuttResult    String?
+  secondPuttDistance Int?
+  threePutt          Boolean @default(false)
+
+  penalties   Int     @default(0)
+  penaltyType String?
+  layUp       Boolean @default(false)
+  holeNotes   String?
+
+  sgOffTee      Float?
+  sgApproach    Float?
+  sgAroundGreen Float?
+  sgPutting     Float?
+  sgTotal       Float?
+
+  round Round @relation(fields: [roundId], references: [id], onDelete: Cascade)
+
+  @@unique([roundId, holeNumber])
+}
+
+// ─── HANDICAP HISTORY ───────────────────────────────────────────────────────
+
+model HandicapEntry {
+  id            String   @id @default(cuid())
+  handicapIndex Float
+  recordedDate  DateTime
+  notes         String?
+  createdAt     DateTime @default(now())
+}
+
+// ─── SETTINGS & GOALS ───────────────────────────────────────────────────────
+
+model Settings {
+  id String @id @default(cuid())
+
+  goalGirPercent     Float?
+  goalFairwayPercent Float?
+  goalScramblingPct  Float?
+  goalSandSavePct    Float?
+  goalPuttsPerRound  Float?
+  goalThreePuttPct   Float?
+  goalAvgFirstPutt   Float?
+  goalSgPutting      Float?
+  goalSgApproach     Float?
+  goalSgOffTee       Float?
+
+  distanceUnit    String   @default("yards")
+  sgBaseline      String   @default("pga_tour")
+  defaultTeeColor String?
+
+  bagClubs String[]
+
+  updatedAt DateTime @updatedAt
+}
