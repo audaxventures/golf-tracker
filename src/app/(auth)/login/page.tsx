@@ -5,25 +5,40 @@ import { createClient } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
 
 export default function LoginPage() {
+  const [mode, setMode] = useState<'login' | 'signup'>('login')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
+  const [message, setMessage] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const router = useRouter()
   const supabase = createClient()
 
-  async function handleLogin(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setLoading(true)
     setError(null)
+    setMessage(null)
 
-    const { error } = await supabase.auth.signInWithPassword({ email, password })
-    if (error) {
-      setError(error.message)
-      setLoading(false)
+    if (mode === 'login') {
+      const { error } = await supabase.auth.signInWithPassword({ email, password })
+      if (error) {
+        setError(error.message)
+        setLoading(false)
+      } else {
+        router.push('/dashboard')
+        router.refresh()
+      }
     } else {
-      router.push('/dashboard')
-      router.refresh()
+      const { error } = await supabase.auth.signUp({ email, password })
+      if (error) {
+        setError(error.message)
+        setLoading(false)
+      } else {
+        setMessage('Account created! Check your email to confirm, then sign in.')
+        setMode('login')
+        setLoading(false)
+      }
     }
   }
 
@@ -35,13 +50,20 @@ export default function LoginPage() {
             Audax Golf
           </h1>
           <div className="w-2 h-2 rounded-full bg-[--gold] mx-auto mt-2" />
-          <p className="text-[--text-muted] text-sm mt-3">Sign in to your account</p>
+          <p className="text-[--text-muted] text-sm mt-3">
+            {mode === 'login' ? 'Sign in to your account' : 'Create your account'}
+          </p>
         </div>
 
-        <form onSubmit={handleLogin} className="bg-white rounded-xl border border-[--border] shadow-sm p-6 space-y-4">
+        <form onSubmit={handleSubmit} className="bg-white rounded-xl border border-[--border] shadow-sm p-6 space-y-4">
           {error && (
             <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-3 py-2">
               {error}
+            </div>
+          )}
+          {message && (
+            <div className="bg-green-50 border border-green-200 text-green-700 text-sm rounded-lg px-3 py-2">
+              {message}
             </div>
           )}
 
@@ -68,6 +90,7 @@ export default function LoginPage() {
               value={password}
               onChange={e => setPassword(e.target.value)}
               required
+              minLength={6}
               className="w-full h-11 px-3 rounded-lg border border-[--border] bg-white text-[--text-primary] text-sm focus:outline-none focus:ring-2 focus:ring-[--navy] focus:border-transparent"
               placeholder="••••••••"
             />
@@ -78,9 +101,25 @@ export default function LoginPage() {
             disabled={loading}
             className="w-full h-11 bg-[--navy] text-white hover:bg-[--navy-light] rounded-lg font-medium text-sm transition-colors duration-150 disabled:opacity-60"
           >
-            {loading ? 'Signing in…' : 'Sign in'}
+            {loading ? (mode === 'login' ? 'Signing in…' : 'Creating account…') : (mode === 'login' ? 'Sign in' : 'Create account')}
           </button>
         </form>
+
+        <p className="text-center text-sm text-[--text-muted] mt-4">
+          {mode === 'login' ? (
+            <>No account?{' '}
+              <button onClick={() => { setMode('signup'); setError(null); setMessage(null) }} className="text-[--navy] font-medium underline underline-offset-2">
+                Create one
+              </button>
+            </>
+          ) : (
+            <>Already have an account?{' '}
+              <button onClick={() => { setMode('login'); setError(null); setMessage(null) }} className="text-[--navy] font-medium underline underline-offset-2">
+                Sign in
+              </button>
+            </>
+          )}
+        </p>
       </div>
     </div>
   )
