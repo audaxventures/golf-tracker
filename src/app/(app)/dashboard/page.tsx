@@ -115,17 +115,17 @@ export default function DashboardPage() {
   useEffect(() => {
     setLoading(true)
     Promise.all([
-      fetch(`/api/stats?range=${range}`).then(r => r.json()),
-      fetch(`/api/stats?range=${range * 2}`).then(r => r.json()),
-      fetch('/api/rounds').then(r => r.json()),
-      fetch('/api/handicap').then(r => r.json()),
-      fetch('/api/settings').then(r => r.json()),
+      fetch(`/api/stats?range=${range}`).then(r => r.json()).catch(() => null),
+      fetch(`/api/stats?range=${range * 2}`).then(r => r.json()).catch(() => null),
+      fetch('/api/rounds').then(r => r.json()).catch(() => []),
+      fetch('/api/handicap').then(r => r.json()).catch(() => []),
+      fetch('/api/settings').then(r => r.json()).catch(() => null),
     ]).then(([s, prev, r, h, set]) => {
-      setStats(s)
-      setPrevStats(prev)
-      setRounds(r.slice(0, 3))
-      setHandicap(h)
-      setSettings(set)
+      setStats(s?.error ? null : s)
+      setPrevStats(prev?.error ? null : prev)
+      setRounds(Array.isArray(r) ? r.slice(0, 3) : [])
+      setHandicap(Array.isArray(h) ? h : [])
+      setSettings(set?.error ? null : set)
       setLoading(false)
     })
   }, [range])
@@ -161,10 +161,10 @@ export default function DashboardPage() {
   const insight = generateInsight()
 
   const sgChartData = [
-    { name: 'OTT', value: stats?.sgTotals.offTee ?? 0, fill: stats?.sgTotals.offTee ?? 0 >= 0 ? 'var(--green-gain)' : 'var(--red-loss)' },
-    { name: 'App', value: stats?.sgTotals.approach ?? 0, fill: stats?.sgTotals.approach ?? 0 >= 0 ? 'var(--green-gain)' : 'var(--red-loss)' },
-    { name: 'ARG', value: stats?.sgTotals.aroundGreen ?? 0, fill: stats?.sgTotals.aroundGreen ?? 0 >= 0 ? 'var(--green-gain)' : 'var(--red-loss)' },
-    { name: 'Putt', value: stats?.sgTotals.putting ?? 0, fill: stats?.sgTotals.putting ?? 0 >= 0 ? 'var(--green-gain)' : 'var(--red-loss)' },
+    { name: 'OTT', value: stats?.sgTotals?.offTee ?? 0, fill: (stats?.sgTotals?.offTee ?? 0) >= 0 ? 'var(--green-gain)' : 'var(--red-loss)' },
+    { name: 'App', value: stats?.sgTotals?.approach ?? 0, fill: (stats?.sgTotals?.approach ?? 0) >= 0 ? 'var(--green-gain)' : 'var(--red-loss)' },
+    { name: 'ARG', value: stats?.sgTotals?.aroundGreen ?? 0, fill: (stats?.sgTotals?.aroundGreen ?? 0) >= 0 ? 'var(--green-gain)' : 'var(--red-loss)' },
+    { name: 'Putt', value: stats?.sgTotals?.putting ?? 0, fill: (stats?.sgTotals?.putting ?? 0) >= 0 ? 'var(--green-gain)' : 'var(--red-loss)' },
   ]
 
   const handicapChartData = handicap.slice(0, 12).reverse().map(h => ({
